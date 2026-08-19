@@ -1,0 +1,22 @@
+# Binaries & build artifacts
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Environment & secret files
+.env
+*.env.local
+
+# IDE & OS specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
