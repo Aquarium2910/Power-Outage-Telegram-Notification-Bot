@@ -98,12 +98,9 @@ func (r *UserRepo) GetByTelegramID(ctx context.Context, telegramID int64) (entit
 	return r.getUser(ctx, "telegramID", telegramID)
 }
 
-// TODO: GET should return user with it's groups!
-// 	add users_subscriptions join
-
 func (r *UserRepo) getUser(ctx context.Context, column string, value any) (entity.User, error) {
 	sql, args, err := r.Builder.
-		Select("id, telegramID, username, firstname, is_active, created_at").
+		Select("id, telegramID, username, firstname, is_active, state, created_at").
 		From("users").
 		Where(squirrel.Eq{column: value}).
 		ToSql()
@@ -115,7 +112,7 @@ func (r *UserRepo) getUser(ctx context.Context, column string, value any) (entit
 	var user entity.User
 
 	err = r.Pool.QueryRow(ctx, sql, args...).
-		Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.IsActive, &user.CreatedAt)
+		Scan(&user.ID, &user.TelegramID, &user.Username, &user.FirstName, &user.IsActive, &user.State, &user.CreatedAt)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -125,7 +122,47 @@ func (r *UserRepo) getUser(ctx context.Context, column string, value any) (entit
 		return entity.User{}, fmt.Errorf("UserRepo - getUser - r.Pool.QueryRow: %w", err)
 	}
 
+	err = r.getUserGroups(ctx, &user)
+	if err != nil {
+		return entity.User{}, fmt.Errorf("UserRepo - getUser - getUserGroups: %w", err)
+	}
+
 	return user, nil
+}
+
+func (r *UserRepo) getUserGroups(ctx context.Context, user *entity.User) error {
+	sql, args, err := r.Builder.
+		Select("group_id").
+		From("users_subscriptions").
+		Where(squirrel.Eq{"user_id": user.ID}).
+		OrderBy("group_id").
+		ToSql()
+
+	if err != nil {
+		return fmt.Errorf("UserRepo - getUserGroups - r.Builder: %w", err)
+	}
+
+	rows, err := r.Pool.Query(ctx, sql, args...)
+
+	if err != nil {
+		return fmt.Errorf("UserRepo - getUserGroups - r.Pool.Query: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var group entity.GroupID
+		err = rows.Scan(&group)
+		if err != nil {
+			return fmt.Errorf("UserRepo - getUserGroups - rows.Scan: %w", err)
+		}
+		user.Groups = append(user.Groups, group)
+	}
+
+	if err = rows.Err(); err != nil {
+		return fmt.Errorf("UserRepo - getUserGroups - rows.Err: %w", err)
+	}
+
+	return nil
 }
 
 func (r *UserRepo) Update(ctx context.Context, user *entity.User) error {

@@ -15,7 +15,7 @@ internal/
 ├── entity/       # domain models (user, schedule)
 ├── usecase/      # business logic, defined via interfaces (contracts.go)
 ├── repo/         # data access, persistent implementation + contracts.go
-└──controller/   # delivery layer (telegram handlers, router, presenter)
+└── controller/   # delivery layer (telegram handlers, router, presenter)
 ```
 
 Each layer depends only on interfaces defined by the layer below it
